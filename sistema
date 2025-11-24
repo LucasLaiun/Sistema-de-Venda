@@ -1,0 +1,506 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+// structs
+struct Cliente {
+	char nomeCliente[30];
+	int idadeCliente;
+	char sexoCliente;
+};
+
+struct Venda {
+	struct Cliente cliente;
+	int qtdItensAdic;
+	float valorAdic;
+	char nomeModelo[30];
+	float totalVenda;
+};
+typedef struct Venda Venda;
+
+// funções 
+void salvarVendas(Venda vendaSalva);
+void carregarVendas(Venda **vendas, int *qtdVendas);
+void cadastrarNovasVendas(Venda **vendas, int *qtdVendas, int *novasVendas);
+void pesquisarVendaEspecífica(Venda **vendas, int *qtdVendas);
+void informacoesTodasVendas(Venda **vendas, int *qtdVendas);
+
+int main()
+{
+	int operacao = 0;
+    Venda *vendas = NULL;
+    int qtdVendas = 0;
+    int novasVendas = 0;
+    
+    carregarVendas(&vendas, &qtdVendas);
+    
+	do {
+	    // menu
+		printf("\n----------------\n MENU PRINCIPAL \n----------------\n");
+        printf("\n 1 - Cadastrar novas vendas");
+        printf("\n 2 - Ver informações de uma venda específica, baseado no nome do cliente");
+        printf("\n 3 - Ver informações de todas as vendas");
+        printf("\n 4 - Encerrar o programa");
+        printf("\n Digite uma opção: ");
+		scanf("%d", &operacao);
+	    getchar();
+		switch(operacao) {
+		case 1:
+			cadastrarNovasVendas(&vendas, &qtdVendas, &novasVendas);
+			break;
+		case 2:
+		    pesquisarVendaEspecífica(&vendas, &qtdVendas);
+			break;
+		case 3:
+		    informacoesTodasVendas(&vendas, &qtdVendas);
+			break;
+        case 4:
+            printf("\n Programa encerrado!");
+            return 0;
+        default:
+            printf("\n Numero invalido");
+		}
+	} while(operacao != 4);
+	free(vendas);
+
+	return 0;
+}
+
+void carregarVendas(Venda **vendas, int *qtdVendas){
+    FILE *arquivo = fopen("vendas.txt", "r");
+    if (arquivo == NULL) {
+        // arquivo ainda não existe, não tem problema
+        // apenas não carrega nada
+        return;
+    }
+
+    Venda venda;
+    *qtdVendas = 0;
+    *vendas = NULL;
+
+    // lê enquanto conseguir pegar TODOS os 7 campos
+    while (fscanf(arquivo,
+                  "%29[^;];%d;%c;%29[^;];%d;%f;%f\n",
+                  venda.cliente.nomeCliente,
+                  &venda.cliente.idadeCliente,
+                  &venda.cliente.sexoCliente,
+                  venda.nomeModelo,
+                  &venda.qtdItensAdic,
+                  &venda.valorAdic,
+                  &venda.totalVenda) == 7) {
+
+        Venda *tmp = realloc(*vendas, (*qtdVendas + 1) * sizeof(Venda));
+        if (tmp == NULL) {
+            printf("\nErro de memória ao carregar vendas.\n");
+            fclose(arquivo);
+            return;
+        }
+
+        *vendas = tmp;
+        (*vendas)[*qtdVendas] = venda;
+        (*qtdVendas)++;
+    }
+
+    fclose(arquivo);
+    printf("\n%d vendas carregadas do arquivo.\n", *qtdVendas);
+}
+
+void salvarVendas(Venda vendaSalva){
+    FILE *arquivo = fopen("vendas.txt", "a");
+    if (arquivo == NULL) {
+        printf("\nErro ao abrir o arquivo para escrita.\n");
+        return;
+    }
+
+    // uma venda por linha (campos separados por ;)
+    fprintf(arquivo, "%s;%d;%c;%s;%d;%.2f;%.2f\n",
+            vendaSalva.cliente.nomeCliente,
+            vendaSalva.cliente.idadeCliente,
+            vendaSalva.cliente.sexoCliente,
+            vendaSalva.nomeModelo,
+            vendaSalva.qtdItensAdic,
+            vendaSalva.valorAdic,
+            vendaSalva.totalVenda);
+
+    fclose(arquivo);
+}
+
+void cadastrarNovasVendas(Venda **vendas, int *qtdVendas, int *novasVendas) {
+    // variaveis de validação
+    int nomeInvalido = 0;
+    int sexoValido = 0;
+    
+    //variáveis
+    int modelo;
+    int condicao = 0;
+    int nenhum = 0;
+    char maisAdicionais;
+    int opcao = 0;
+    
+    // 
+    do{
+        printf("\n Quantas vendas deseja cadastrar?");
+        scanf("%d", novasVendas);
+        
+        *vendas = realloc(*vendas, (*qtdVendas + *novasVendas) * sizeof(Venda));
+        if(*vendas == NULL){
+            printf("\n erro");
+            return;
+        }
+        getchar();
+        for(int i = *qtdVendas; i < (*qtdVendas + *novasVendas); i++){
+            (*vendas)[i].qtdItensAdic = 0;
+            (*vendas)[i].valorAdic = 0;
+            (*vendas)[i].totalVenda = 0;
+            // nome
+            do{
+                nomeInvalido = 0;
+                nomeInvalido = 0;
+                printf("\n-----------\n NOME \n-----------");
+                printf("\n Nome do cliente? ");
+                fgets((*vendas)[i].cliente.nomeCliente, sizeof((*vendas)[i].cliente.nomeCliente), stdin);
+                (*vendas)[i].cliente.nomeCliente[strcspn((*vendas)[i].cliente.nomeCliente, "\n")] = '\0';
+                
+                int tamanho = strlen((*vendas)[i].cliente.nomeCliente);
+                if(tamanho < 3){
+                    printf("\n Nome inválido. Seu nome deve possuir 3 letras ou mais.");
+                    nomeInvalido++;
+                }
+                
+            }while(nomeInvalido != 0);
+            
+            // idade
+            do{
+                printf("\n-----------\n IDADE \n-----------");
+                printf("\n Informe a idade do cliente: ");
+        	    scanf("%d", &(*vendas)[i].cliente.idadeCliente);
+        	    getchar();
+        	    if((*vendas)[i].cliente.idadeCliente < 0){
+        	        printf("\n Idade inválida. Deve ser um número positivo.");
+        	    }
+            }while((*vendas)[i].cliente.idadeCliente < 0);
+            
+            
+            //sexo
+            do{
+                sexoValido = 0;
+                printf("\n-----------\n SEXO \n-----------");
+                printf("\n M - (masculino)");
+                printf("\n F - (feminino)");
+                printf("\n N - (não identificado)");
+                printf("\n Informe o sexo do cliente:");
+                scanf(" %c", &(*vendas)[i].cliente.sexoCliente);
+                if((*vendas)[i].cliente.sexoCliente != 'F' && (*vendas)[i].cliente.sexoCliente != 'f' && (*vendas)[i].cliente.sexoCliente != 'M' && (*vendas)[i].cliente.sexoCliente != 'm' && (*vendas)[i].cliente.sexoCliente != 'N' && (*vendas)[i].cliente.sexoCliente != 'n'){
+                    printf("\n Sexo inválido. Digite novamente.");
+                    sexoValido++;
+                }
+            }while(sexoValido != 0);
+            getchar();
+            
+            // modelo do carro
+            do{
+                printf("\n-----------\n MODELOS \n-----------");
+        	    printf("\n 1 - Civic(R$20.000)");
+        	    printf("\n 2 - Compass(R$30.000)");
+        	    printf("\n 3 - Jetta(R$40.000)");
+        	    printf("\n 4 - 911(R$100.000)");
+        	    printf("\n Informe o modelo vendido:");
+            	scanf("%d", &modelo);
+            	getchar();
+            	switch(modelo){
+            	    case 1:
+            	        strcpy((*vendas)[i].nomeModelo, "Civic");
+            	        (*vendas)[i].totalVenda += 20000;
+            	        break;
+            	   case 2:
+            	        strcpy((*vendas)[i].nomeModelo, "Compass");
+            	        (*vendas)[i].totalVenda += 30000;
+            	        break;
+            	   case 3:
+            	        strcpy((*vendas)[i].nomeModelo, "Jetta");
+            	        (*vendas)[i].totalVenda += 40000;
+            	        break;
+            	   case 4:
+            	        strcpy((*vendas)[i].nomeModelo, "911");
+            	        (*vendas)[i].totalVenda += 100000;
+            	        break;
+            	   default:
+            	        printf("\n Modelo Invalido!");
+            	        break;
+            	}
+            	
+    	    } while(modelo < 1 || modelo > 4);
+    	    
+    	    //adicionais
+    	    do{
+    	        int adicionais = 0;
+    	        nenhum = 0;
+    	        printf("\n-----------\n ADICIONAIS \n-----------");
+                printf("\n 1 - Aerofólio (R$ 1.000,00)");
+                printf("\n 2 - Nitro (R$ 3.000,00)");
+                printf("\n 3 - Teto-Solar (R$ 2.000,00)");
+                printf("\n 4 - Escape (R$ 1.500,00)");
+                printf("\n 5 - Suspensão esportiva (R$ 6.000,00)");
+                printf("\n Informe os adicionais: ");
+                scanf("%d", &adicionais);
+                getchar();
+                switch(adicionais) {
+            		case 1:
+            			(*vendas)[i].qtdItensAdic++;
+            			(*vendas)[i].valorAdic += 1000;
+            			(*vendas)[i].totalVenda += 1000;
+            			break;
+            		case 2:
+            			(*vendas)[i].qtdItensAdic++;
+            			(*vendas)[i].valorAdic += 3000;
+            			(*vendas)[i].totalVenda += 3000;
+            			break;
+            		case 3:
+            			(*vendas)[i].qtdItensAdic++;
+            			(*vendas)[i].valorAdic += 2000;
+            			(*vendas)[i].totalVenda += 2000;
+            			break;
+            		case 4:
+            			(*vendas)[i].qtdItensAdic++;
+                        (*vendas)[i].valorAdic += 1500;
+                        (*vendas)[i].totalVenda += 1500;
+                        break;
+                    case 5:
+                        (*vendas)[i].qtdItensAdic++;
+                        (*vendas)[i].valorAdic += 6000;
+                        (*vendas)[i].totalVenda += 6000;
+                        break;
+                    default:
+                        printf("\n Numero invalido!");
+            		}
+            		printf(" Deseja adicionar mais? (S ou N): ");
+                    scanf(" %c", &maisAdicionais);
+                    getchar();
+                	
+                if((*vendas)[i].qtdItensAdic >= 3){
+                    printf("\n Limite de 3 adicionais");
+                    maisAdicionais = 'n';
+                }
+    	    }while((*vendas)[i].qtdItensAdic < 3 && maisAdicionais == 's' || maisAdicionais == 'S');
+    	    
+    	    // confirmação
+    	    printf("\n Compra cadastrada com sucesso!");
+            printf("\n Total da venda: R$%.2f", (*vendas)[i].totalVenda);
+            printf("\n Total valor gasto com adicionais: R$%.2f", (*vendas)[i].valorAdic);
+            printf("\n Itens adicionados: %.d", (*vendas)[i].qtdItensAdic);
+            
+            salvarVendas((*vendas)[i]);
+            printf("\n Venda salva");
+        }
+            *qtdVendas += *novasVendas;
+            //
+            printf("\n-----------------\n FIM DO CADASTRO \n-----------------");
+            printf("\n 1 - Cadastrar mais itens");
+            printf("\n 2 - Menu principal");
+            printf("\n Escolha uma opção: ");
+            scanf("%d", &opcao);
+            getchar();
+
+    }while(opcao == 1);
+    
+	
+}
+
+// Pesquisar uma venda específica
+
+void pesquisarVendaEspecífica(Venda **vendas, int *qtdVendas){
+    // variaveis 
+    int comp = 0;
+    char nomeInformado[30];
+    int nomeValido = 0;
+    int opcao;
+    
+    float soma = 0;
+    int total = 0;
+    float media = 0;
+    
+    do{
+        printf("\n Digite um nome para pesquisar: ");
+        fgets(nomeInformado, sizeof(nomeInformado), stdin);
+        nomeInformado[strcspn(nomeInformado, "\n")] = '\0';
+        for(int i = 0; i < (*qtdVendas); i++){
+            comp = strcmp((*vendas)[i].cliente.nomeCliente, nomeInformado);
+            if(comp == 0){
+                nomeValido = 1;
+                printf("\n--------------------\nDADOS DO PEDIDO\n--------------------\n");
+                            //valor da compra
+                            printf("\n O valor total da compra foi de: R$%.2f\n ", (*vendas)[i].totalVenda);
+                            
+                            //quantidade de adicionais 
+                            printf("\n O número de adicionais foi: %d\n", (*vendas)[i].qtdItensAdic);
+                            
+                            //valor dos adicionais
+                            printf("\n O valor dos adicionais foi de: %.2f\n", (*vendas)[i].valorAdic);
+                            
+                            //modelo comprado
+                            printf("\n O modelo comprado foi: %s\n", (*vendas)[i].nomeModelo);
+                            
+                            soma += (*vendas)[i].totalVenda;
+                            total++;
+            }
+        }
+        if(nomeValido == 0){
+            printf("\n Nenhuma venda encontrada no nome %s", nomeInformado);
+        }
+        else{
+            media = soma/total;
+            printf(" \n A média de valor de compras feita pelo cliente é: %.2f\n", media);
+        }
+        printf("\n------------------\nFIM DA PESQUISA\n------------------");
+            printf("\n 1 - Pesquisar novamente");
+            printf("\n 2 - Menu principal");
+            printf("\n Escolha uma opção: ");
+            scanf("%d", &opcao);
+            getchar();
+    }while(opcao == 1);
+    
+}
+
+// Todas as vendas 
+void informacoesTodasVendas(Venda **vendas, int *qtdVendas){
+    //variaveis
+    int qtdVendasAcimaValor = 0;
+    float AcimaValor = 0;
+    int qtdVendasIgualDois = 0;
+    int cmpCivic = 0;
+    int qtdVendasCivic = 0;
+    int qtdCompradoresNIO = 0;
+    float valorTotalM = 0;
+    int qtdTotalItensAdic = 0;
+    float valorTotalVendas = 0;
+    float compMedia = 0;
+    float mediaGeral = 0;
+    int tamMaiorNome = 0;
+    int tam = 0;
+    char maiorNome[30];
+    int cmpMaiorNome = 0;
+    int clienteMaisNovo = 0;
+    int maisNovo = 0;
+    int qtdVendasNome = 0;
+    int opcao;
+    
+    //pesquisa
+    printf("\n Digite um valor que será usado para exibir a quantidade de vendas acima dele: ");
+    scanf("%f", &AcimaValor);
+    getchar();
+    
+    //resultado da pesquisa
+    for(int i = 0; i < (*qtdVendas); i++){
+        if((*vendas)[i].totalVenda > AcimaValor){
+            qtdVendasAcimaValor++;
+        }
+        if((*vendas)[i].qtdItensAdic == 2){
+            qtdVendasIgualDois++;
+        }
+        cmpCivic = strcmp((*vendas)[i].nomeModelo, "Civic");
+        if(cmpCivic == 0){
+            qtdVendasCivic++;
+        }
+        if((*vendas)[i].cliente.sexoCliente == 'n' || (*vendas)[i].cliente.sexoCliente == 'N'){
+            qtdCompradoresNIO++;
+        }
+        if((*vendas)[i].cliente.sexoCliente == 'f' || (*vendas)[i].cliente.sexoCliente == 'F'){
+            valorTotalM += (*vendas)[i].totalVenda;
+        }
+        qtdTotalItensAdic += (*vendas)[i].qtdItensAdic;
+        valorTotalVendas += (*vendas)[i].totalVenda;
+        
+        
+        tam = strlen((*vendas)[i].cliente.nomeCliente);
+        if(tam > tamMaiorNome){
+            tamMaiorNome = tam;
+            strcpy (maiorNome, ((*vendas)[i].cliente.nomeCliente)); 
+        }
+        
+        if((*vendas)[i].cliente.idadeCliente < clienteMaisNovo || clienteMaisNovo == 0){
+            clienteMaisNovo = (*vendas)[i].cliente.idadeCliente;
+            maisNovo = i;
+        }
+                        
+    }
+    mediaGeral = valorTotalVendas/(*qtdVendas);
+                        
+    // maior nome
+    for(int i = 0; i < (*qtdVendas); i++){
+        cmpMaiorNome = strcmp((*vendas)[i].cliente.nomeCliente, maiorNome);
+        if(cmpMaiorNome == 0){
+        printf("\n------------------------\n DADOS DO MAIOR NOME \n------------------------\n");
+        //valor da compra
+        printf("\n O valor total da compra foi de: R$%.2f\n ", (*vendas)[i].totalVenda);
+                
+        //quantidade de adicionais 
+        printf("\n O número de adicionais foi: %d\n", (*vendas)[i].qtdItensAdic);
+                
+        //valor dos adicionais
+        printf("\n O valor dos adicionais foi de: %.2f\n", (*vendas)[i].valorAdic);
+                
+        //modelo comprado
+        printf("\n O modelo comprado foi: %s\n", (*vendas)[i].nomeModelo);
+        }
+    }
+    
+    printf("\n--------------------\n DADOS MAIS NOVO \n--------------------\n");
+    for(int i = 0; i < (*qtdVendas); i++){
+        if((*vendas)[i].cliente.idadeCliente == clienteMaisNovo){
+             //valor da compra
+            printf("\n O valor total da compra foi de: R$%.2f\n ", (*vendas)[i].totalVenda);
+        
+            //quantidade de adicionais 
+            printf("\n O número de adicionais foi: %d\n", (*vendas)[i].qtdItensAdic);
+        
+            //valor dos adicionais
+            printf("\n O valor dos adicionais foi de: %.2f\n", (*vendas)[i].valorAdic);
+        
+            //modelo comprado
+            printf("\n O modelo comprado foi: %s\n", (*vendas)[i].nomeModelo);            
+        }
+    }
+   
+    
+    // informações gerais 
+    printf("\n--------------------\n DADOS GERAIS \n--------------------\n");
+    //quantidade acima do valor
+    printf("\n Quantidade de vendas acima de %.2f: %.d\n", AcimaValor, qtdVendasAcimaValor);
+
+    //quantidade de 2 adicionais 
+    printf("\n A quantidade de compras que tiveram apenas dois adicionais: %d\n", qtdVendasIgualDois);
+
+    //quantidade civic
+    printf("\n A quantidade de carros do modelo CIVIC vendidos foi: %.d\n", qtdVendasCivic);
+
+    //quantidade não informou o sexo
+    printf("\n A quantidade de pessoas que não informaram o sexo foi: %d\n", qtdCompradoresNIO);
+                        
+    //total comprado por mulheres
+    printf("\n O total comprado por mulheres foi: %.2f\n", valorTotalM);
+                        
+    //total de adicionais vendidos
+    printf("\n O total de adicionais vendidos foi: %d\n", qtdTotalItensAdic);
+                        
+    //total das vendas
+    printf("\n O valor total das vendas foi: %.2f\n", valorTotalVendas);
+                        
+    //valor medio de uma venda
+    printf("\n o valor médio de uma venda foi: %.2f\n", mediaGeral);
+        
+    printf("\n-----------------------------\nVOLTAR PARA O MENU PRINCIPAL?\n-----------------------------");
+    printf("\n 1 - Sim");
+    printf("\n 2 - Não (encerrar o programa)");
+    printf("\n Escolha uma opção: ");
+    scanf("%d", &opcao);
+            
+    if(opcao == 2){
+        free(*vendas);
+        printf("\n Programa encerrado");
+        exit(0);
+    }
+        
+}
+
+
+
